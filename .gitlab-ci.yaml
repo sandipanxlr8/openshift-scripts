@@ -1,0 +1,40 @@
+image: docker:latest
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_REGISTRY: <your-registry-url>
+  DOCKER_NAMESPACE: <your-registry-namespace>
+
+  OPENSHIFT_URL: <your-openshift-url>
+  OPENSHIFT_NAMESPACE: <your-openshift-namespace>
+  
+  IMAGE_PULL_SECRET_NAME: <your-openshift-secret-name>
+  - scale-down
+  - scale-up
+ 
+
+scale-down:
+  image: <your-openshift-image>
+  stage: scale-down
+  tags:
+  - run_docker
+  script:
+   - oc login $OPENSHIFT_URL --token=$OPENSHIFT_TOKEN
+   - oc project $OPENSHIFT_NAMESPACE
+   - oc scale --replicas=0 $(oc get dc -o name | xargs) -n $OPENSHIFT_NAMESPACE
+  when: manual
+
+scale-up-central:
+  image: <your-openshift-image>
+  stage: scale-up
+  tags:
+  - run_docker
+  script:
+  - oc login $OPENSHIFT_URL --token=$OPENSHIFT_TOKEN
+  - oc project $OPENSHIFT_NAMESPACE
+  - oc scale --replicas=1 dc/$OPENSHIFT_DEPLOYMENT_NAME -n $OPENSHIFT_NAMESPACE #here individually scale up the application dependencies like 
+                                                                                #configserver, activemq, database.
+  - sleep 120
+  - oc scale --replicas=1 $(oc get dc -o name | xargs) -n $OPENSHIFT_NAMESPACE
+  when: manual
+  
